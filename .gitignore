@@ -18,3 +18,4 @@ credentials.json
 # System files
 .DS_Store
 Thumbs.db
+workflows/workflows.backup.json
