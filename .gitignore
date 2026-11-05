@@ -1,0 +1,20 @@
+# Secrets and credentials
+.env
+.env.*
+*.key
+*.pem
+credentials.json
+
+# Temporary and backup files
+*.save
+*.save.*
+*.tmp
+*~
+
+# Logs and local data
+*.log
+.n8n/
+
+# System files
+.DS_Store
+Thumbs.db
