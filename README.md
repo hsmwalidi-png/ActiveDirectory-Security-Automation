@@ -1,63 +1,78 @@
 # Active Directory Brute-Force Detection and Automated Response
 
-## Project Overview
+Automated monitoring and response for failed logons in an Active Directory lab (`hsw.local`), built with PowerShell, n8n, and Windows Task Scheduler.
 
-This project demonstrates an automated security monitoring and response system for an Active Directory environment.
+> **Verify, then trust.**
 
-It detects repeated failed login attempts, collects Windows Security Events, sends security events to an n8n workflow, and automatically disables accounts when the configured brute-force threshold is reached.
+## How it works
 
-The project combines Windows Server, PowerShell, Active Directory, Kali Linux, Docker, and n8n to demonstrate a practical security automation scenario.
+```text
+Windows 11 client (failed logons)
+        |
+        v
+Domain Controller - Security log (events 4625 / 4771 / 4776)
+        |
+        +-- Task 1: AD-4625-to-n8n (every 1 min)
+        |     Send-4625.ps1 -> HTTP POST -> n8n webhook -> filter -> email alert
+        |
+        +-- Task 2: AD-BruteForce-Block (every 1 min)
+              Block-BruteForce.ps1 -> count failures per user
+              -> 5+ in 10 min -> Disable-ADAccount -> block-log.txt
+```
 
-## Lab Environment
+Alerting (n8n) and blocking (PowerShell on the DC) are independent paths, so a stopped n8n does not stop the response.
+
+## Components
+
+| File | Purpose |
+|---|---|
+| `scripts/Send-4625.ps1` | Reads failed-logon events, sends them to the n8n webhook, keeps a state file so no event is lost or repeated |
+| `scripts/Block-BruteForce.ps1` | Counts failures per user and disables the account at the threshold |
+| `tasks/*.xml` | Scheduled tasks (run as SYSTEM, every minute) |
+| `workflows/workflows.json` | n8n workflow: webhook, filter, email alert |
+
+## Lab environment
 
 | Component | Purpose |
 |---|---|
-| Windows Server 2022 | Active Directory Domain Controller |
-| Windows 11 | Client workstation and testing |
-| Kali Linux | Hosts the automation environment |
-| Docker | Runs n8n |
-| n8n | Workflow automation and email notifications |
-| PowerShell | Event collection and automated response |
+| Windows Server 2022 | Domain Controller |
+| Windows 11 | Client and testing |
+| Kali Linux + Docker | Hosts n8n |
+| n8n | Webhook and email alerts |
+| PowerShell | Event collection and response |
 
-## Architecture
+## Detection logic
 
-```text
-Windows 11 Client
-       |
-       | Failed Login Attempts
-       v
-Windows Server 2022
-       |
-       | Windows Security Events
-       v
-PowerShell Monitoring Script
-       |
-       | HTTP POST / Webhook
-       v
-n8n Webhook
-       |
-       v
-Event Filtering and Processing
-       |
-       +----------------------+
-       |                      |
-       v                      v
-Email Notification     Brute-Force Detection
-                              |
-                              v
-                       PowerShell Response
-                              |
-                              v
-                    Disable AD User Account
-```
+- Threshold: 5 failed attempts within 10 minutes
+- Excluded accounts: `administrator`, `krbtgt`, `guest`, `unknown`
+- Only existing, enabled accounts are touched
+- Every action is written to `C:\Scripts\block-log.txt`
+- `-DryRun` shows what would be disabled without changing anything
 
-## Main Features
+## Setup
 
-- Monitors Windows Security Events.
-- Detects repeated failed authentication attempts.
-- Collects relevant event information, including usernames and timestamps.
-- Sends security events to n8n through a Webhook.
-- Sends email notifications when security events are detected.
-- Automatically disables an Active Directory account when the configured threshold is reached.
-- Uses scheduled tasks to automate monitoring and response.
-- Includes persistent n8n data storage
+1. Copy both scripts to `C:\Scripts\` on the Domain Controller.
+2. Set `$WebhookUrl` in `Send-4625.ps1` to your n8n host.
+3. Import the scheduled tasks from an elevated PowerShell:
+   ```powershell
+   schtasks /Create /TN "AD-4625-to-n8n" /XML ".\tasks\AD-4625-to-n8n.xml"
+   schtasks /Create /TN "AD-BruteForce-Block" /XML ".\tasks\AD-BruteForce-Block.xml"
+   ```
+4. Import `workflows/workflows.json` into n8n, attach your own SMTP credential, and activate it.
+
+## Testing
+
+1. Create a test user (never a real account).
+2. Dry run first:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File C:\Scripts\Block-BruteForce.ps1 -DryRun
+   ```
+3. From the Windows 11 client, enter a wrong password 5 times for the test user.
+4. Check the alert email, `block-log.txt`, and `Get-ADUser <name> | Select Enabled`.
+
+## Security notes
+
+- Usernames in logon events are attacker-controlled. The block script validates them against a strict pattern before querying AD.
+- The webhook uses plain HTTP inside an isolated lab. Use HTTPS and a secret header outside a lab.
+- Auto-disable can be abused to lock out a victim account. Privileged accounts are excluded, and a production setup should prefer temporary lockout or alert-only for sensitive accounts.
+- No credentials are stored in this repository.
