@@ -1,0 +1,177 @@
+[
+  {
+    "updatedAt": "2026-11-02T09:39:37.362Z",
+    "createdAt": "2026-10-14T10:30:04.182Z",
+    "id": "Gp7ILzFcnaLnHOZW",
+    "name": "Automationg the reporting process",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "ad-security-events",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.2,
+        "position": [
+          0,
+          0
+        ],
+        "id": "680031f9-72e6-4bc0-a600-a24bc452ca68",
+        "name": "Webhook",
+        "webhookId": "005cdd53-2ce7-45f2-a078-dfe0f8d1ba86"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "152183a1-bedc-40d8-aa21-a7f3a6e43aae",
+                "leftValue": "={{ $json.body.event_id }}",
+                "rightValue": 4624,
+                "operator": {
+                  "type": "number",
+                  "operation": "gt"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          224,
+          0
+        ],
+        "id": "829e620a-8a45-422a-8e4c-3c6b4fd8f58a",
+        "name": "If"
+      },
+      {
+        "parameters": {
+          "mode": "raw",
+          "jsonOutput": "={\n  \"message\": \"Failed login (Event {{ $json.body.event_id }}) for user: {{ $json.body.username || 'unknown' }}\\nDomain: {{ $json.body.domain }}\\nSource: {{ $json.body.source_ip }}\\nStatus: {{ $json.body.status }}\\nComputer: {{ $json.body.computer }}\\nTime: {{ $json.body.time }}\"\n}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.5,
+        "position": [
+          448,
+          -96
+        ],
+        "id": "23303458-1f23-4c18-8633-640c2d3c166e",
+        "name": "Edit Fields"
+      },
+      {
+        "parameters": {
+          "fromEmail": "you@example.com",
+          "toEmail": "you@example.com",
+          "subject": "Security Alert: Failed Login (4625)",
+          "emailFormat": "text",
+          "text": "={{ $json.message }}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          672,
+          -96
+        ],
+        "id": "7f3e911b-20b1-4bc1-90c3-e2569cf3366e",
+        "name": "Send an Email",
+        "webhookId": "38c36b08-49de-4d36-bbcf-55ad2ba4ffd2",
+        "credentials": {
+          "smtp": {
+            "id": "hG1Bkyjkz2KSdwmZ",
+            "name": "SMTP account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "If",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If": {
+        "main": [
+          [
+            {
+              "node": "Edit Fields",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Edit Fields": {
+        "main": [
+          [
+            {
+              "node": "Send an Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate"
+    },
+    "staticData": null,
+    "meta": {
+      "templateCredsSetupCompleted": true
+    },
+    "nodeGroups": [],
+    "pinData": {},
+    "versionId": "c137db5d-209e-4641-8c02-8953766e2375",
+    "activeVersionId": "c137db5d-209e-4641-8c02-8953766e2375",
+    "versionCounter": 378,
+    "triggerCount": 1,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-10-14T10:30:04.187Z",
+        "createdAt": "2026-10-14T10:30:04.187Z",
+        "role": "workflow:owner",
+        "workflowId": "Gp7ILzFcnaLnHOZW",
+        "projectId": "JtemWOtSnduWK5IV",
+        "project": {
+          "updatedAt": "2026-10-14T10:00:43.758Z",
+          "createdAt": "2026-10-14T08:37:51.475Z",
+          "id": "JtemWOtSnduWK5IV",
+          "name": "Admin  <you@example.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "customTelemetryTags": [],
+          "creatorId": "4b40c34d-c642-4fec-ad93-ffd201ecc1e1"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": "Version c137db5d",
+      "description": ""
+    }
+  }
+]
